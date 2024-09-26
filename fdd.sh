@@ -9,24 +9,24 @@ fi
 # Check if a container using the flutter-dev image is already running
 CONTAINER_ID=$(docker ps -q --filter ancestor=flutter-dev)
 
-if [ -z "$CONTAINER_ID" ]; then
-  # Check if a stopped container exists
-  CONTAINER_ID=$(docker ps -aq --filter name=flutter-dev-container)
-
-  if [ -n "$CONTAINER_ID" ]; then
-    echo "Container exists but is not running. Starting it..."
-    docker start flutter-dev-container
-    docker exec -it flutter-dev-container bash
-  else
-    echo "No running container found. Starting a new one..."
-    docker run -it \
-      --name flutter-dev-container \
-      --volume /tmp/.X11-unix:/tmp/.X11-unix \
-      --env DISPLAY=$DISPLAY \
-      --volume "$HOST_DIR":/home/flutter/projects \
-      flutter-dev
-  fi
-else
-  echo "Existing container found. Attaching to it..."
-  docker exec -it $CONTAINER_ID bash
+# If a container is running, stop and remove it
+if [ -n "$CONTAINER_ID" ]; then
+  echo "Stopping and removing existing container..."
+  docker stop $CONTAINER_ID
+  docker rm $CONTAINER_ID
 fi
+
+# Check for any stopped container with the same name
+STOPPED_CONTAINER_ID=$(docker ps -aq --filter name=flutter-dev-container)
+if [ -n "$STOPPED_CONTAINER_ID" ]; then
+  echo "Removing stopped container..."
+  docker rm $STOPPED_CONTAINER_ID
+fi
+
+echo "Starting a new container..."
+docker run -it \
+  --name flutter-dev-container \
+  --volume /tmp/.X11-unix:/tmp/.X11-unix \
+  --env DISPLAY=$DISPLAY \
+  --volume "$HOST_DIR":/home/flutter/projects \
+  flutter-dev
