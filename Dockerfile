@@ -1,6 +1,7 @@
 # Stage 1: Build Neovim
 FROM ubuntu:22.04 as neovim-build
 
+ARG LAZYVIM_REPO
 ARG BRANCH=master
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -21,8 +22,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV PUB_HOSTED_URL=https://pub.flutter-io.cn
 ENV FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn
 
-# Copy Neovim from build stage
-COPY --from=neovim-build /usr/local /usr/local
 
 # Update and install essential packages
 RUN apt-get update && apt-get upgrade -y && \
@@ -57,15 +56,13 @@ ENV PATH="/home/flutter/flutter/bin:/home/flutter/.pub-cache/bin:/usr/local/bin:
 
 # Run flutter doctor
 RUN flutter doctor
-
 # Enable flutter web
 RUN flutter channel master && \
     flutter upgrade && \
     flutter config --enable-web
 
 # Install and initialize LazyVim
-RUN git clone https://github.com/LazyVim/starter /home/flutter/.config/nvim
-COPY config/nvim/lua/config/options.lua /home/flutter/.config/nvim/lua/config/options.lua
+RUN git clone ${LAZYVIM_REPO} /home/flutter/.config/nvim
 
 # Pre-install plugins and initialize LazyVim
 RUN nvim --headless "+Lazy! sync" +qa

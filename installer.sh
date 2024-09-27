@@ -18,7 +18,7 @@ check_docker() {
 build_docker_image() {
   if ! docker images | grep -q "$DOCKER_IMAGE_NAME"; then
     echo "Building Docker image '$DOCKER_IMAGE_NAME' from Dockerfile..."
-    docker build -t "$DOCKER_IMAGE_NAME" "$SOURCE_DIR" || {
+    docker build -t "$DOCKER_IMAGE_NAME" --build-arg LAZYVIM_REPO="$LAZYVIM_REPO" "$SOURCE_DIR" || {
       echo "Error: Failed to build Docker image."
       exit 1
     }
@@ -36,6 +36,15 @@ fi
 
 # Check for Docker
 check_docker
+
+# Prompt for LazyVim GitHub URL
+read -p "Enter the GitHub URL for your LazyVim config: " LAZYVIM_REPO
+
+# Validate the URL
+if [[ ! "$LAZYVIM_REPO" =~ ^https://github\.com/ ]]; then
+  echo "Error: Please enter a valid GitHub URL."
+  exit 1
+fi
 
 # Build the Docker image
 build_docker_image
