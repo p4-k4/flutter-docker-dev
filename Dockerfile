@@ -1,13 +1,13 @@
+
 # Stage 1: Build Neovim
 FROM ubuntu:22.04 as neovim-build
 
-ARG LAZYVIM_REPO
-ARG BRANCH=master
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y automake cmake curl g++ gettext git libtool-bin make pkg-config unzip && \
-    git clone -b ${BRANCH} --single-branch --depth 1 https://github.com/neovim/neovim.git
+    apt-get install -y automake cmake curl g++ gettext git libtool-bin make pkg-config unzip
+
+RUN git clone -b master --single-branch --depth 1 https://github.com/neovim/neovim.git
 
 WORKDIR neovim
 
@@ -19,9 +19,9 @@ FROM ubuntu:22.04
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
+ENV HOME=/home/flutter
 ENV PUB_HOSTED_URL=https://pub.flutter-io.cn
 ENV FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn
-
 
 # Update and install essential packages
 RUN apt-get update && apt-get upgrade -y && \
@@ -61,10 +61,18 @@ RUN flutter channel master && \
     flutter upgrade && \
     flutter config --enable-web
 
-# Install and initialize LazyVim
-RUN git clone ${LAZYVIM_REPO} /home/flutter/.config/nvim
+# Copy the installed Neovim from the build stage
+COPY --from=neovim-build /usr/local/bin/nvim /usr/local/bin/nvim
+COPY --from=neovim-build /usr/local/share/nvim /usr/local/share/nvim
 
-# Pre-install plugins and initialize LazyVim
+# Copy LazyVim config from local machine
+COPY --chown=flutter:flutter lazyvim-config /home/flutter/.config/nvim
+
+# Append settings to options.lua
+RUN mkdir -p /home/flutter/.config/nvim/lua/config && \
+    echo 'local opt = vim.opt\nopt.clipboard = "unnamedplus"\n\nvim.g.clipboard = {\n\tname = "OSC 52",\n\tcopy = {\n\t\t["+"] = require("vim.ui.clipboard.osc52").copy("+"),\n\t\t["*"] = require("vim.ui.clipboard.osc52").copy("*"),\n\t},\n\tpaste = {\n\t\t["+"] = require("vim.ui.clipboard.osc52").paste("+"),\n\t\t["*"] = require("vim.ui.clipboard.osc52").paste("*"),\n\t},\n}' >> /home/flutter/.config/nvim/lua/config/options.lua
+
+# Pre-install plugins and initialize Neovim
 RUN nvim --headless "+Lazy! sync" +qa
 
 # Set up a directory for Flutter projects

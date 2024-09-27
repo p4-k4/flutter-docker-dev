@@ -16,16 +16,27 @@ check_docker() {
 
 # Function to build the Docker image
 build_docker_image() {
-  if ! docker images | grep -q "$DOCKER_IMAGE_NAME"; then
-    echo "Building Docker image '$DOCKER_IMAGE_NAME' from Dockerfile..."
-    docker build -t "$DOCKER_IMAGE_NAME" --build-arg LAZYVIM_REPO="$LAZYVIM_REPO" "$SOURCE_DIR" || {
-      echo "Error: Failed to build Docker image."
-      exit 1
-    }
-    echo "Docker image '$DOCKER_IMAGE_NAME' built successfully."
-  else
-    echo "Docker image '$DOCKER_IMAGE_NAME' already exists."
+  echo "Building Docker image '$DOCKER_IMAGE_NAME' from Dockerfile..."
+  docker build -t "$DOCKER_IMAGE_NAME" "$SOURCE_DIR" || {
+    echo "Error: Failed to build Docker image."
+    exit 1
+  }
+  echo "Docker image '$DOCKER_IMAGE_NAME' built successfully."
+}
+
+# Function to clone LazyVim config
+clone_lazyvim_config() {
+  read -p "Enter the GitHub URL for your LazyVim config: " LAZYVIM_REPO
+
+  # Validate the URL
+  if [[ ! "$LAZYVIM_REPO" =~ ^https://github\.com/ ]]; then
+    echo "Error: Please enter a valid GitHub URL."
+    exit 1
   fi
+
+  # Clone the repository
+  echo "Cloning LazyVim config from $LAZYVIM_REPO..."
+  git clone "$LAZYVIM_REPO" lazyvim-config
 }
 
 # Check if the source directory exists
@@ -37,13 +48,14 @@ fi
 # Check for Docker
 check_docker
 
-# Prompt for LazyVim GitHub URL
-read -p "Enter the GitHub URL for your LazyVim config: " LAZYVIM_REPO
+# Clone LazyVim configuration
+clone_lazyvim_config
 
-# Validate the URL
-if [[ ! "$LAZYVIM_REPO" =~ ^https://github\.com/ ]]; then
-  echo "Error: Please enter a valid GitHub URL."
-  exit 1
+# Check if the Docker image already exists
+if docker images | grep -q "$DOCKER_IMAGE_NAME"; then
+  echo "Docker image '$DOCKER_IMAGE_NAME' already exists. Rebuilding..."
+else
+  echo "Docker image '$DOCKER_IMAGE_NAME' does not exist. Building it now..."
 fi
 
 # Build the Docker image
@@ -58,9 +70,9 @@ sudo mkdir -p "$TARGET_DIR"
 # Copy the main script
 sudo cp "$SOURCE_DIR/fdd.sh" "$TARGET_SCRIPT"
 
-# Copy additional files (Dockerfile and config directory)
+# Copy the Dockerfile and LazyVim config directory
 sudo cp "$SOURCE_DIR/Dockerfile" "$TARGET_DIR/Dockerfile"
-sudo cp -r "$SOURCE_DIR/config" "$TARGET_DIR/config"
+sudo cp -r "$SOURCE_DIR/lazyvim-config" "$TARGET_DIR/lazyvim-config"
 
 # Make the main script executable
 sudo chmod +x "$TARGET_SCRIPT"
